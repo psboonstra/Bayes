@@ -1,0 +1,335 @@
+---
+title: "Introduction to Bayes"
+author: "www.umich.edu/~philb/Winter2022Slides/Bayes.html"
+date: "Univeristy of Michigan Biostatistics 699, Winter 2022"
+geometry: margin=0.5in
+output: 
+  ioslides_presentation:
+    transition: 0.1
+    css: ~/Desktop/Work/CV/Styles/temp_fancy_logo_only_first.css
+    includes:
+      in_header: ~/Desktop/Work/CV/Styles/slides_header.html
+    incremental: no
+    widescreen: true
+    logo: ~/Desktop/Work/CV/Styles/Biostat-informal.png
+    slide_level: 2
+  pdf_document:
+    highlight: zenburn
+    includes:
+      in_header: ~/Desktop/Work/CV/Styles/tex_pdf_header.txt
+    keep_tex: yes
+    toc: no
+    fig_caption: false
+    fig_height: 6
+    fig_width: 3
+  beamer_presentation:
+    highlight: zenburn
+    includes:
+      in_header: ~/Desktop/Work/CV/Styles/tex_header.txt
+    keep_tex: yes
+    theme: Pittsburgh
+    toc: no
+    fig_caption: false
+bibliography: ../../../../CV/Styles/references.bib  
+---
+
+```{r setup, include=FALSE}
+library(tidyverse); 
+library(broom);
+knitr::opts_chunk$set(echo = T, warning = F, message = F);
+knitr::knit_hooks$set(mysize = function(before, options, envir) {
+  if (before) 
+    return(options$size);
+})
+options(digits = 4);
+figure_scaler = 5/8;#1/2 for ioslides; ~1/3 for word, pdf
+text_scaler = 1;#1 for ioslides; 2/3 for word, pdf
+fig.x = 16 * figure_scaler;
+fig.y = 9 * figure_scaler;
+cex_scale = 1.75 * figure_scaler;
+theme_set(theme_bw())
+
+```
+
+## Two designs for inference on a proportion
+
+Adapted from @lindley.tas. Two designs for testing $H_0:\gamma = 0.5$
+
+### Design 1
+
+In $n=20$ independent experiments, $R$ successes are observed. For observed 
+value $R=14$, one-sided $p$-value for testing $H_0$:
+
+$$
+\Pr(R \geq 14|\gamma=0.5) = \sum_{x=14}^{20}\binom{20}{x}0.5^x0.5^{20-x}
+$$
+or 
+
+```{r, echo = T}
+pbinom(q = 13, size = 20, prob = 0.5, lower = F);
+source("invert_pvalues.R")
+invert_pbinom_leftsided(q = 13, size = 20, conf_level = 0.95)$conf_int
+```
+
+Confidence set of null hypotheses that we would not reject using `1-conf_level` as
+significance threshold given these data. 
+
+## Two designs for inference on a proportion
+
+Adapted from @lindley.tas. Two designs for testing $H_0:\gamma = 0.5$
+
+### Design 2
+
+Run independent experiments until $f=6$ failures, conducting as many experiments
+as necessary. $R$ successes are observed. For observed value $R=14$, two-sided $p$-value is 
+
+$$
+\Pr(R \geq 14|\gamma=0.5) = \sum_{x=14}^\infty \binom{x+5}{x}0.5^x 0.5^6
+$$
+
+```{r}
+pnbinom(q = 13, size = 6, prob = 0.5, lower = F);
+invert_pnbinom_leftsided(q = 13, size = 6, conf_level = 0.95)$conf_int
+```
+
+## 
+
+- If $\alpha=0.05$ were significance threshold, these two experiments would yield
+different conclusions despite identical data
+
+- $p$-values incorporate knowledge of stopping rules and sampling space ("probability of observing data as extreme or more so assuming null hypothesis is true")
+
+* In Design 1, sampling space of $R$ is $0, 1, \ldots, 20$
+* In Design 2, sampling space of $R$ is $0, 1, \ldots$
+
+- Frequentist inference is focused on frequency-based inference: if we were to repeat the data sampling mechanism multiple times, with what probability would our confidence interval cover the true parameter
+
+## Likelihood Principle
+
+- Up to constant, likelihood is equal up to multiplicative constant not depending on $\gamma$: $\gamma^{14}(1-\gamma)^6$
+
+- Some argue that all information from your data should be contained in the likelihood function. This is known as Likelihood Principle
+
+## Bayesian analysis
+
+Bayesian analysis ignores the stopping rule or sample space of a problem. Instead, needs specification of *prior* beliefs about parameter
+
+### Bayes rule
+
+$$\pi(\gamma | R) = \dfrac{L(R | \gamma) \pi (\gamma)}{\int_\gamma L(R | \gamma) \pi(\gamma))} = \dfrac{L(R | \gamma) \pi (\gamma)}{f(R)}$$
+
+- $\pi(\gamma)$ represents beliefs about parameters, prior to data collection, represented as probability distribution
+
+- $\pi(\gamma|R)$ is updated probability distribution after accounting for generated
+data that is governed by parameters
+
+## Applied to example
+
+- $L(R|\gamma) \propto \gamma^{14}(1-\gamma)^6$
+
+- $\pi(\gamma) \propto \gamma^{a-1}(1-\gamma)^{b-1}$
+
+$\Rightarrow \pi(\gamma|R)  \propto \gamma^{14}(1-\gamma)^6 \gamma^{a -1}(1-\gamma)^{b-1} = \gamma^{14+a-1}\gamma^{6+b-1}$
+
+$\Rightarrow \gamma|R \sim \mathrm{Beta}(14+a, 6+b)$
+
+Uncertainty intervals are called *credible* intervals. Lower bounds are:
+
+```{r}
+# a=b=0.5
+qbeta(0.05, 14.5, 6.5)
+# a=b=4
+qbeta(0.05, 18, 10)
+```
+
+
+## Non-trivial Bayesian examples
+
+Most class examples use conjugate priors, meaning posterior distribution is same family
+as prior. Many interesting examples do not use conjugate priors. Define 
+$\beta = \log(\gamma / [1-\gamma])$. So $\gamma =0.5 \Rightarrow \beta=0$
+
+- $\pi(\beta) \propto \dfrac{1}{1 + (\beta/b)^2}$ ($\beta\sim \mathrm{Cauchy}(0, b^2)$)
+
+- $\pi(\beta) \propto \exp\{-|\beta|/b\}$ ($\beta\sim \mathrm{LaPlace}(0, b)$)
+
+## $\beta\sim \mathrm{Cauchy}(0, 2.5^2)$
+
+```{r}
+require(rstanarm)
+response_data <- 
+  data.frame(y = c(rep(1, 14), rep(0, 6)), 
+             x = rep(1, 20))
+
+bayes_prop_cauchy <- 
+  stan_glm(data = response_data, 
+           # drop the the intercept from logistic regression
+           # since x is already constant term
+           formula = y ~ -1 + x, 
+           prior = cauchy(scale = 2.5),
+           family = "binomial",
+           refresh = 1000)
+bayes_prop_cauchy_betas <- rstan::extract(bayes_prop_cauchy$stanfit)[["beta"]][,1]
+quantile(1 / (1 + exp(-bayes_prop_cauchy_betas)), p = c(0.05, 0.5))
+ggplot(data = data.frame(gamma = 1 / (1 + exp(-bayes_prop_cauchy_betas)))) + 
+  geom_histogram(aes(x = gamma), 
+                 bins = 50) + 
+  geom_vline(aes(xintercept = quantile(gamma, 0.05))) + 
+  scale_x_continuous(name = expression(gamma), 
+                     breaks = seq(0, 1, by = 0.1)) + 
+  scale_y_continuous(name = NULL) + 
+  theme(text = element_text(size = 24))
+```
+
+
+## $\beta\sim \mathrm{LaPlace}(0, 2.5)$
+
+```{r}
+
+bayes_prop_laplace <- 
+  stan_glm(data = response_data, 
+           # drop the the intercept from logistic regression
+           # since x is already constant term
+           formula = y ~ -1 + x, 
+           prior = laplace(scale = 2.5),
+           family = "binomial",
+           refresh = 1000)
+bayes_prop_laplace_betas <- rstan::extract(bayes_prop_laplace$stanfit)[["beta"]][,1]
+quantile(1 / (1 + exp(-bayes_prop_laplace_betas)), p = c(0.05, 0.5))
+ggplot(data = data.frame(gamma = 1 / (1 + exp(-bayes_prop_laplace_betas)))) + 
+  geom_histogram(aes(x = gamma), 
+                 bins = 50) + 
+  geom_vline(aes(xintercept = quantile(gamma, 0.05))) + 
+  scale_x_continuous(name = expression(gamma), 
+                     breaks = seq(0, 1, by = 0.1)) + 
+  scale_y_continuous(name = NULL) + 
+  theme(text = element_text(size = 24))
+```
+
+
+## $\beta\sim \mathrm{LaPlace}(0, 0.05)$
+
+```{r}
+
+bayes_prop_laplace <- 
+  stan_glm(data = response_data, 
+           # drop the the intercept from logistic regression
+           # since x is already constant term
+           formula = y ~ -1 + x, 
+           prior = laplace(scale = 0.05),
+           family = "binomial",
+           refresh = 1000)
+bayes_prop_laplace_betas <- rstan::extract(bayes_prop_laplace$stanfit)[["beta"]][,1]
+quantile(1 / (1 + exp(-bayes_prop_laplace_betas)), p = c(0.05, 0.5))
+ggplot(data = data.frame(gamma = 1 / (1 + exp(-bayes_prop_laplace_betas)))) + 
+  geom_histogram(aes(x = gamma), 
+                 bins = 50) + 
+  geom_vline(aes(xintercept = quantile(gamma, 0.05))) + 
+  scale_x_continuous(name = expression(gamma), 
+                     breaks = seq(0.02, 1, by = 0.04)) + 
+  scale_y_continuous(name = NULL) + 
+  theme(text = element_text(size = 24))
+```
+
+## How to sample from posterior
+
+### Gibbs sampling
+
+Conditional sampling from posterior, one parameter at time
+
+Very similar to MICE algorithm
+
+## How to sample from posterior
+
+### Metropolis or Metropolis-Hastings
+
+May not be able to characterize normalizing constant $f(R) = \int_\gamma L(R | \gamma) \pi(\gamma))$: 
+
+$$\pi(\gamma | R) = \dfrac{L(R | \gamma) \pi (\gamma)}{\int_\gamma L(R | \gamma) \pi(\gamma))} = \dfrac{L(R | \gamma) \pi (\gamma)}{f(R)}$$
+But nearly always can completely characterize ratio of posterior for two values:
+
+$$ \dfrac{\pi(\gamma_1 | R)}{\pi(\gamma_2 | R)} = \dfrac{L(R | \gamma=\gamma_1) \pi (\gamma_1)}{f(R)}\dfrac{f(R)}{L(R | \gamma=\gamma_2) \pi (\gamma_2)}=\dfrac{L(R | \gamma=\gamma_1) \pi (\gamma_1)}{L(R | \gamma=\gamma_2) \pi (\gamma_2)}$$
+
+
+## Bayesian software available to R users
+
+- WinBUGS (Gibbs Sampling when possible, MH otherwise)
+
+- JAGS (Gibbs Sampling when possible, MH otherwise)
+
+- STAN (Uses Hamiltonian Monte Carlo) 
+
+    * In `R`, `rstanarm` for standard models; `rstan` and `cmdstanr` for writing your own models
+
+    * STAN is also implemented in other languages (Python, Julia, others)
+
+## Is MLE frequentist?
+
+- Strictly speaking, it is not frequentist for finite sample sizes. 
+
+- But frequentists still use maximum likelihood, because it is consistent, 
+asymptotically unbiased, and controls error rates. 
+
+- Frequentists usually write likelihood as function of *parameters* conditional on observed *data*, i.e. $L(\gamma|R)$ (different interpretation than Bayesians)
+
+- Yet another confidence interval:
+
+```{r}
+(14/20) - qnorm(0.95) * sqrt((14/20) * (6/20) / 20)
+```
+
+Compared to previous confidence intervals:
+
+```{r}
+# Exact when binomial sampling scheme
+invert_pbinom_leftsided(q = 13, size = 20, conf_level = 0.95)$conf_int
+```
+
+```{r}
+# Exact when negative binomial sampling scheme
+invert_pnbinom_leftsided(q = 13, size = 6, conf_level = 0.95)$conf_int
+```
+
+
+```{r}
+# Bayes: a=b=0.5
+qbeta(0.05, 14.5, 6.5)
+# Bayes: a=b=4
+qbeta(0.05, 18, 10)
+```
+
+## Link to ridge / Lasso
+
+In our example, ridge regression would give
+
+$$\arg\max_{\beta}\{\log L(\beta|R) - \lambda\beta^2\}.$$
+
+Compare to Bayesian analysis with Normal prior, $\pi(\beta) \propto \exp\{-\beta^2/c^2\}$. The log-posterior is equal (up to constant) to
+
+$$\log L(R | \beta) + \log \pi (\beta) = \log L(R | \beta) - \beta^2/c^2 $$
+For this reason, placing Normal prior on regression coefficients sometimes called 'Bayesian ridge'. 
+Two key differences:
+
+  - Ridge regression maximizes the penalized log-likelihood
+    
+  - $\lambda$ is selected using CV; how to choose $c$?
+
+Similar connection between Lasso and Laplace prior. 
+
+## Lots of places to learn more
+
+[Bayesian Data Analysis, 3rd edition](http://www.stat.columbia.edu/~gelman/book/BDA3.pdf)
+
+Maximum likelihood, profile likelihood, and penalized likelihood: a primer @cole.aje
+
+A 250-year argument: Belief, behavior, and the bootstrap @efron.bams
+
+[rstanarm reference guide](https://mc-stan.org/rstanarm/reference/)
+
+[Why is maximum likelihood estimation considered to be a frequentist technique](https://stats.stackexchange.com/questions/180420/why-is-maximum-likelihood-estimation-considered-to-be-a-frequentist-technique)
+
+[Hamiltonian Monte Carlo](https://mc-stan.org/docs/2_29/reference-manual/hamiltonian-monte-carlo.html)
+
+[Nice slide deck on Metropolis algorithms from Prof. Rebecca Steorts at Duke](http://www2.stat.duke.edu/~rcs46/modern_bayes17/lecturesModernBayes17/lecture-6/06-metropolis.pdf)
+
+## References
